@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
 declare_id!("2eH4VtkkB5X5592hmuQqFQvQ9QKaTEmRZyvQgf9EWyxp");
 
@@ -48,6 +48,35 @@ pub mod vault_manager {
         anchor_spl::token::transfer(cpi_ctx, amount)?;
         Ok(()) // if no erros are thrown is returns Ok(())
     }
+
+    pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()>{
+        msg!("Amount Withdrawing: {}", amount);
+        
+        // checks vault has enough tokens 
+        let vault = &ctx.accounts.vault;
+        if vault.amount < amount {
+            return Err(VaultError::InsufficientFunds.into());
+        }
+
+        //Vaults balance
+        msg!("Vaults Balance: {}", vault.amount);
+
+        let seeds = &[b"VAULT_MANAGER".as_ref(), &[ctx.bumps.token_account_owner_pda]];
+        let signer_seeds = &[&seeds[..]];
+
+        let tx_instruct = Transfer {
+            from: ctx.accounts.vault.to_account_info(),
+            to: ctx.accounts.receiver_token_account.to_account_info(),
+            authority: ctx.accounts.token_account_owner_pda.to_account_info(),
+        };
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        transfer(CpiContext::new_with_signer(cpi_program, tx_instruct, signer_seeds), amount)?;
+
+        msg!("Withdrawal successful");
+        Ok(())
+    }
+       
 }
 
 
@@ -81,7 +110,7 @@ pub struct Deposit<'info>{
 	#[account(
 		init_if_needed,
 		seeds = [
-			b"VAULT_MANAGER_PDA_VAULT".as_ref(),
+			b"VAULT_MANAGER_PDA_VAULT",
 			mint_account.key().as_ref()
 		],
 		token::mint      = mint_account,
@@ -103,6 +132,33 @@ pub struct Deposit<'info>{
 	pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct Withdraw<'info>{
+    #[account(mut,
+    seeds = [b"VAULT_MANAGER"],
+    bump
+    )]
+    pub token_account_owner_pda: AccountInfo<'info>,
+
+    #[account(mut, 
+    seeds=[b"VAULT_MANAGER_PDA_VAULT", mint_account.key().as_ref()],
+    bump,
+    token::mint = mint_account,
+    token::authority = token_account_owner_pda,
+    )]
+    pub vault: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub receiver_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    pub mint_account: Account<'info, Mint>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
 
 #[error_code]
 pub enum VaultError {

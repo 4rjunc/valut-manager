@@ -10,7 +10,17 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
   setAuthority,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+
+async function createAccount(amount: number) {
+  let accounts: any[] = [];
+  let account = anchor.web3.Keypair.generate();
+  await airdropSol(account.publicKey, amount);
+  console.log("☘️  Account Created => " + account.publicKey.toString());
+  accounts.push(account);
+  return accounts;
+}
 
 // airdrops sol to the account
 async function airdropSol(publicKey, amount) {
@@ -35,7 +45,7 @@ async function confirmTransaction(tx) {
   });
 }
 
-describe("vault-manager", () => {
+describe("Vault Manager 💰 🕴️", () => {
   // Configure the client to use the local cluster
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -51,12 +61,11 @@ describe("vault-manager", () => {
   const program = anchor.workspace.VaultManager as Program<VaultManager>;
   connection = provider.connection;
 
-  it("Is initialized!", async () => {
+  it("VAULT MANAGER Is initialized!", async () => {
     //create account
-    let account = anchor.web3.Keypair.generate();
-    await airdropSol(account.publicKey, 10);
-    accounts.push(account);
-
+    //  let walletAlice = anchor.web3.Keypair.generate();
+    // await airdropSol(walletAlice.publicKey, 10);
+    accounts = await createAccount(10);
     walletAlice = accounts[0];
 
     // mint account
@@ -71,7 +80,14 @@ describe("vault-manager", () => {
     } catch (err) {
       console.log(err);
     }
+
+    console.log(
+      "----------------------------------------------------------------"
+    );
     console.log("Mint Alice => ", mintAlice.toBase58());
+    console.log(
+      "----------------------------------------------------------------"
+    );
 
     try {
       // ATA
@@ -84,7 +100,13 @@ describe("vault-manager", () => {
     } catch (err) {
       console.log(err);
     }
+    console.log(
+      "----------------------------------------------------------------"
+    );
     console.log("ATA Alice => ", ataAlice.address.toBase58());
+    console.log(
+      "----------------------------------------------------------------"
+    );
 
     try {
       let mintTx = await mintTo(
@@ -95,7 +117,13 @@ describe("vault-manager", () => {
         walletAlice.publicKey,
         amountAlice
       );
+      console.log(
+        "----------------------------------------------------------------"
+      );
       console.log("Mint Transaction => ", mintTx);
+      console.log(
+        "----------------------------------------------------------------"
+      );
 
       await setAuthority(
         connection,
@@ -105,13 +133,25 @@ describe("vault-manager", () => {
         0,
         null
       );
+      console.log(
+        "----------------------------------------------------------------"
+      );
       console.log("****Authority is set for Alice****");
+      console.log(
+        "----------------------------------------------------------------"
+      );
 
       const tokenAccountInfo = await getAccount(connection, ataAlice.address);
 
       const balanceToken =
         tokenAccountInfo.amount / BigInt(Math.pow(10, decimals));
-      console.log("Balance Token => " + balanceToken);
+      console.log(
+        "----------------------------------------------------------------"
+      );
+      console.log("⚖️  Initial Balance Token => " + balanceToken);
+      console.log(
+        "----------------------------------------------------------------"
+      );
     } catch (err) {
       console.log(err);
     }
@@ -120,7 +160,13 @@ describe("vault-manager", () => {
       [Buffer.from("VAULT_MANAGER")],
       program.programId
     );
+    console.log(
+      "----------------------------------------------------------------"
+    );
     console.log("TokenAccountOwnerPda => " + tokenAccountOwnerPda);
+    console.log(
+      "----------------------------------------------------------------"
+    );
 
     let confirmOptions = {
       skipPreflight: true,
@@ -141,8 +187,12 @@ describe("vault-manager", () => {
     }
   });
 
-  it("deposit(): multiple deposit on one unique vault", async () => {
-    const pda = await getVaultPda(program, "SSF_PDA_VAULT", mintAlice);
+  it("🚀 Depositing Tokens", async () => {
+    const pda = await getVaultPda(
+      program,
+      "VAULT_MANAGER_PDA_VAULT",
+      mintAlice
+    );
 
     let [tokenAccountOwnerPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("VAULT_MANAGER")],
@@ -161,7 +211,13 @@ describe("vault-manager", () => {
       })
       .signers([walletAlice])
       .rpc();
-    console.log("    (deposit +3) https://solana.fm/tx/" + tx);
+    console.log(
+      "----------------------------------------------------------------"
+    );
+    console.log("🪙 Deposit +3 Tokens => https://solana.fm/tx/" + tx);
+    console.log(
+      "----------------------------------------------------------------"
+    );
     console.log("");
 
     tx = await program.methods
@@ -176,8 +232,81 @@ describe("vault-manager", () => {
       })
       .signers([walletAlice])
       .rpc();
-    console.log("    (deposit +2) https://solana.fm/tx/" + tx);
+    console.log(
+      "----------------------------------------------------------------"
+    );
+    console.log("🪙 Deposit 2 Tokens => https://solana.fm/tx/" + tx);
+    console.log(
+      "----------------------------------------------------------------"
+    );
     console.log("");
+
+    try {
+      const tokenAccountInfo = await getAccount(connection, ataAlice.address);
+
+      const balanceToken =
+        tokenAccountInfo.amount / BigInt(Math.pow(10, decimals));
+      console.log(
+        "----------------------------------------------------------------"
+      );
+      console.log("⚖️  After Deposit Token Balance => " + balanceToken);
+      console.log(
+        "----------------------------------------------------------------"
+      );
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
+  it("Withdrawing", async () => {
+    const pda = await getVaultPda(
+      program,
+      "VAULT_MANAGER_PDA_VAULT",
+      mintAlice
+    );
+
+    let [tokenAccountOwnerPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("VAULT_MANAGER")],
+      program.programId
+    );
+
+    let tx = await program.methods
+      .withdraw(new anchor.BN(2))
+      .accounts({
+        tokenAccountOwnerPda: tokenAccountOwnerPda,
+        vault: pda.pubkey,
+        receiverTokenAccount: ataAlice.address,
+        signer: walletAlice.publicKey,
+        mintAccount: mintAlice,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([walletAlice])
+      .rpc();
+    console.log(
+      "----------------------------------------------------------------"
+    );
+    console.log("🪙 Withdrawing 2 Tokens => https://solana.fm/tx/" + tx);
+    console.log(
+      "----------------------------------------------------------------"
+    );
+    console.log("");
+
+    try {
+      const tokenAccountInfo = await getAccount(connection, ataAlice.address);
+
+      const balanceToken =
+        tokenAccountInfo.amount / BigInt(Math.pow(10, decimals));
+      console.log(
+        "----------------------------------------------------------------"
+      );
+      console.log("⚖️  After withdraw Token Balance => " + balanceToken);
+      console.log(
+        "----------------------------------------------------------------"
+      );
+    } catch (err) {
+      console.log(err);
+    }
   });
 });
 
@@ -191,5 +320,29 @@ async function logTransaction(connection, txHash) {
     signature: txHash,
   });
 
-  console.log(`    https://explorer.solana.com/tx/${txHash}`);
+  console.log(
+    "----------------------------------------------------------------"
+  );
+  console.log(`https://explorer.solana.com/tx/${txHash}`);
+  console.log(
+    "----------------------------------------------------------------"
+  );
+}
+
+async function getVaultPda(
+  program: anchor.Program<VaultManager>,
+  tag: String,
+  mintAccount: { toBuffer: () => Uint8Array | Buffer }
+) {
+  const [pubKey, bump] = await anchor.web3.PublicKey.findProgramAddress(
+    [Buffer.from(tag), mintAccount.toBuffer()],
+    program.programId
+  );
+
+  let pda = {
+    pubkey: pubKey,
+    bump: bump,
+  };
+
+  return pda;
 }
