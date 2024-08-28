@@ -8,7 +8,7 @@ pub mod vault_manager {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
+        msg!("Valut Manager Initialized | Greetings from: {:?}", ctx.program_id);
         Ok(())
     }
 
@@ -50,12 +50,13 @@ pub mod vault_manager {
     }
 }
 
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(
 		init_if_needed,
 		payer = signer,
-		seeds = [b"SSF_ACCOUNT_VAULT"],
+		seeds = [b"VAULT_MANAGER"],
 		bump,
 		space = 8
 	)]
@@ -73,14 +74,14 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 pub struct Deposit<'info>{
 	#[account(mut,
-		seeds=[b"SSF_ACCOUNT_VAULT"],
+		seeds=[b"VAULT_MANAGER"],
 		bump
 	)]
 	token_account_owner_pda: AccountInfo<'info>,
 	#[account(
 		init_if_needed,
 		seeds = [
-			b"SSF_PDA_VAULT".as_ref(),
+			b"VAULT_MANAGER_PDA_VAULT".as_ref(),
 			mint_account.key().as_ref()
 		],
 		token::mint      = mint_account,
